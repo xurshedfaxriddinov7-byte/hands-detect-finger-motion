@@ -86,26 +86,61 @@ const SHAPES = {
 };
 
 const TRAIL = 9;
-let main = null, ghosts = [], curN = 0;
+let main = null, ghosts = [], curN = 0, curEdges = null;
+const cylGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
 
 function clearShape() {
-  if (main) { scene.remove(main); main.geometry.dispose(); main.material.dispose(); }
+  if (main) {
+    scene.remove(main);
+    main.traverse(c => { if (c.material) c.material.dispose(); });
+  }
   ghosts.forEach(g => { scene.remove(g); g.material.dispose(); });
   main = null; ghosts = [];
+}
+
+// Qirralarni yo'g'on (nurli) naychalar qilib yasaydi
+function thickEdges(eg, color, radius, opacity) {
+  const grp = new THREE.Group();
+  const pos = eg.attributes.position;
+  const mat = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity,
+    blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false
+  });
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), dir = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < pos.count; i += 2) {
+    a.fromBufferAttribute(pos, i);
+    b.fromBufferAttribute(pos, i + 1);
+    dir.subVectors(b, a);
+    const len = dir.length();
+    if (len < 1e-5) continue;
+    const m = new THREE.Mesh(cylGeo, mat);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.scale.set(radius, len + radius * 1.5, radius);
+    m.quaternion.setFromUnitVectors(up, dir.normalize());
+    grp.add(m);
+  }
+  return grp;
 }
 
 function buildShape(n) {
   clearShape();
   const cfg = SHAPES[n];
   const eg = new THREE.EdgesGeometry(cfg.make());
-  const mk = op => new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
-    color: cfg.color, transparent: true, opacity: op,
-    blending: THREE.AdditiveBlending, depthTest: false
-  }));
-  main = mk(1);
+  curEdges = eg;
+  const core = new THREE.Color(cfg.color).lerp(new THREE.Color(0xffffff), 0.45);
+
+  main = new THREE.Group();
+  main.add(thickEdges(eg, cfg.color, 0.12, 0.28));  // tashqi nur
+  main.add(thickEdges(eg, cfg.color, 0.06, 0.65));  // o'rta nur
+  main.add(thickEdges(eg, core, 0.025, 1));         // yorqin o'zak
   scene.add(main);
+
   for (let i = 0; i < TRAIL; i++) {
-    const g = mk(0.4 * (1 - i / TRAIL));
+    const g = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+      color: cfg.color, transparent: true, opacity: 0.8 * (1 - i / TRAIL),
+      blending: THREE.AdditiveBlending, depthTest: false
+    }));
     g.visible = false;
     scene.add(g);
     ghosts.push(g);
@@ -190,7 +225,8 @@ hands.onResults(res => {
     visible = true;
     const p = dom.lm[9];
     tgt.x = ((1 - p.x) * 2 - 1) * aspect;
-    tgt.y = 1 - p.y * 2;
+    // Shakl qo'lning tepasida turadi
+    tgt.y = Math.min(0.8, (1 - p.y * 2) + 0.4 + 0.2 * scaleCur);
   } else {
     visible = false;
   }
@@ -225,7 +261,7 @@ function loop(t) {
     scaleCur += (scaleTgt - scaleCur) * 0.2;
     rot.x += 0.8 * dt; rot.y += 1.2 * dt; rot.z += 0.3 * dt;
 
-    const s = 0.3 * scaleCur;
+    const s = 0.35 * scaleCur;
     main.position.set(cur.x, cur.y, 0);
     main.rotation.set(rot.x, rot.y, rot.z);
     main.scale.setScalar(s);
@@ -268,4 +304,3 @@ document.getElementById('start').onclick = () => {
 </script>
 </body>
 </html>
-
