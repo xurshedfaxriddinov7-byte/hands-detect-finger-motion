@@ -1,467 +1,606 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Hand Figure</title>
+
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; margin: 0; }
-  html, body {
-    height: 100%;
-    background: #000;
-    overflow: hidden;
-    color: #fff;
-    font-family: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  }
-
-  /* Kamera tasviri: ko'zgudek aylantirilgan va biroz xiralashtirilgan, neon yaxshi ko'rinsin */
-  #video {
-    position: fixed; inset: 0; width: 100%; height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    filter: saturate(.7) brightness(.72) contrast(1.06);
-  }
-  #fx { position: fixed; inset: 0; width: 100%; height: 100%; }
-
-  #status {
-    position: fixed; left: 14px; bottom: 12px;
-    font-size: 12px; letter-spacing: .01em;
-    color: rgba(255,255,255,.78);
-    text-shadow: 0 1px 3px rgba(0,0,0,.8);
-    font-variant-numeric: tabular-nums;
-  }
-  #legend {
-    position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%);
-    display: flex; gap: 14px; font-size: 12px;
-    color: rgba(255,255,255,.55);
-    text-shadow: 0 1px 3px rgba(0,0,0,.8);
-    white-space: nowrap;
-  }
-  #legend b { font-weight: 600; margin-right: 4px; }
-  #legend .c1 b { color: #22e6ff; }
-  #legend .c2 b { color: #ff2d55; }
-  #legend .c3 b { color: #ffd60a; }
-  #legend .c4 b { color: #ff8a1f; }
-  #legend .c5 b { color: #ff4fd8; }
-  @media (max-width: 720px) { #legend { display: none; } }
-
-  #swap {
-    position: fixed; right: 14px; top: 14px;
-    background: rgba(0,0,0,.45);
-    border: 1px solid rgba(255,255,255,.25);
-    color: #fff; font: inherit; font-size: 12px;
-    padding: 7px 12px; border-radius: 999px; cursor: pointer;
-    backdrop-filter: blur(6px);
-  }
-  #swap:hover { border-color: rgba(255,255,255,.6); }
-  #swap:focus-visible, #go:focus-visible { outline: 2px solid #22e6ff; outline-offset: 3px; }
-
-  #intro {
-    position: fixed; inset: 0;
-    display: grid; place-items: center;
-    background: radial-gradient(ellipse at 50% 40%, #1a0f22 0%, #05050a 70%);
-    padding: 24px;
-    transition: opacity .5s ease, visibility .5s;
-  }
-  #intro.hide { opacity: 0; visibility: hidden; }
-  .card { max-width: 440px; text-align: left; }
-  h1 { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 10px; }
-  .card p { color: rgba(255,255,255,.7); line-height: 1.55; font-size: 15px; margin-bottom: 20px; }
-  ul.gest { list-style: none; padding: 0; margin: 0 0 26px; display: grid; gap: 8px; font-size: 15px; }
-  ul.gest li { display: flex; align-items: baseline; gap: 12px; }
-  ul.gest .n { width: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  ul.gest .t { color: rgba(255,255,255,.55); font-size: 13px; }
-  #go {
-    background: #fff; color: #0a0a12; border: 0; border-radius: 999px;
-    font: inherit; font-weight: 600; font-size: 15px;
-    padding: 13px 26px; cursor: pointer;
-  }
-  #go:disabled { opacity: .6; cursor: default; }
-  #msg { margin-top: 14px; font-size: 13px; color: #ffb4c0; min-height: 18px; line-height: 1.45; }
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --card: #202020;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, sans-serif;
+  text-align: center;
+}
+h1 { font-size: 20px; margin: 12px 0 6px; }
+button, select {
+  font-size: 15px;
+  padding: 10px 13px;
+  border: 0;
+  border-radius: 10px;
+  margin: 4px;
+}
+button { background: #2563eb; color: white; }
+.sec { background: var(--card); color: white; }
+#stage {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 8px auto;
+  background: #000;
+  overflow: hidden;
+  display: none;
+}
+#video, #hand, #gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+#video {
+  object-fit: cover;
+  transform: scaleX(-1);
+  filter: brightness(.75);
+}
+#hud {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  color: white;
+  font-size: 12px;
+  text-align: left;
+  text-shadow: 0 0 5px black;
+  pointer-events: none;
+}
+small {
+  display: block;
+  margin: 10px 14px;
+  line-height: 1.7;
+  opacity: .9;
+}
 </style>
 </head>
+
 <body>
+<h1>Hand Figure ❤️</h1>
 
-<video id="video" playsinline muted></video>
-<canvas id="fx"></canvas>
+<button id="start">Kamerani yoqish</button>
+<button id="swap" class="sec" style="display:none">Qo‘llarni almashtirish</button>
 
-<button id="swap" type="button" hidden>Asosiy qo'l: o'ng</button>
-<div id="status">kamera kutilmoqda</div>
-<div id="legend">
-  <span class="c1"><b>1</b>list</span>
-  <span class="c2"><b>2</b>yurak</span>
-  <span class="c3"><b>3</b>piramida</span>
-  <span class="c4"><b>4</b>kub</span>
-  <span class="c5"><b>5</b>ko'pyoqli</span>
+<div id="stage">
+  <video id="video" playsinline muted></video>
+  <canvas id="hand"></canvas>
+  <canvas id="gl"></canvas>
+  <div id="hud">Qo‘lni ko‘rsating</div>
 </div>
 
-<div id="intro">
-  <div class="card">
-    <h1>Hand Figure</h1>
-    <p>Qo'lingizni kameraga ko'rsating. Barmoqlar soniga qarab qo'lingiz ustida neon shakl paydo bo'ladi va qo'l bilan birga yuradi. Ikkinchi qo'lning bosh va ko'rsatkich barmog'ini yaqinlashtirsangiz shakl kichrayadi, uzoqlashtirsangiz kattalashadi.</p>
-    <ul class="gest">
-      <li><span class="n" style="color:#22e6ff">1</span>to'rtburchak list</li>
-      <li><span class="n" style="color:#ff2d55">2</span>qizil yurak</li>
-      <li><span class="n" style="color:#ffd60a">3</span>piramida</li>
-      <li><span class="n" style="color:#ff8a1f">4</span>kub</li>
-      <li><span class="n" style="color:#ff4fd8">5</span>ko'pburchakli shakl</li>
-    </ul>
-    <button id="go" type="button">Kamerani yoqish</button>
-    <div id="msg" role="status"></div>
-  </div>
-</div>
+<small>
+  ☝️ 1 barmoq — to‘rtburchakli list<br>
+  ❤️ 2 barmoq — qizil 3D neon yurak<br>
+  🔺 3 barmoq — uchburchak<br>
+  🧊 4 barmoq — kub<br>
+  ⭐ 5 barmoq — beshburchakli shakl<br>
+  Musht — shaklni yashirish<br>
+  Ikkinchi qo‘lning bosh va ko‘rsatkich barmoqlari bilan o‘lchamni boshqaring.
+</small>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+
 <script>
-(() => {
-  'use strict';
+const video = document.getElementById("video");
+const stage = document.getElementById("stage");
+const glCv = document.getElementById("gl");
+const handCv = document.getElementById("hand");
+const ctx = handCv.getContext("2d");
+const hud = document.getElementById("hud");
 
-  const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240';
-  const $ = (id) => document.getElementById(id);
-  const video = $('video'), cv = $('fx'), ctx = cv.getContext('2d');
-  const statusEl = $('status'), swapBtn = $('swap'), intro = $('intro'), goBtn = $('go'), msgEl = $('msg');
+let renderer, scene, camera;
+let W = 1, H = 1, aspect = 1;
+let swapped = false;
+let main = null, ghosts = [];
+let currentShape = 0;
+let visible = false, wasVisible = false;
+let stable = 0, pending = -1, pendingFrames = 0;
+let scaleCur = 1, scaleTarget = 1;
+let fps = 0, frames = 0, lastFps = performance.now();
+let noHandFrames = 0;
 
-  /* ---------- yordamchi funksiyalar ---------- */
-  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
-  const easeOutBack = (a) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(a - 1, 3) + c1 * Math.pow(a - 1, 2); };
+const cur = { x: 0, y: 0 };
+const target = { x: 0, y: 0 };
+const rot = { x: 0.4, y: 0.2, z: 0 };
+const history = [];
+const TRAIL = 9;
 
-  let W = 0, H = 0, DPR = 1;
-  function resize() {
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    W = window.innerWidth; H = window.innerHeight;
-    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+const fingerDistance = (a, b) =>
+  Math.hypot(a.x-b.x, a.y-b.y, (a.z||0)-(b.z||0));
+
+const screenDistance = (a, b) =>
+  Math.hypot((a.x-b.x)*aspect, a.y-b.y);
+
+function resize() {
+  if (!stage.clientWidth || !stage.clientHeight) return;
+
+  W = stage.clientWidth;
+  H = stage.clientHeight;
+  aspect = W / H;
+
+  handCv.width = W;
+  handCv.height = H;
+
+  if (renderer) {
+    renderer.setSize(W, H, false);
+    camera.left = -aspect;
+    camera.right = aspect;
+    camera.top = 1;
+    camera.bottom = -1;
+    camera.updateProjectionMatrix();
   }
-  window.addEventListener('resize', resize);
+}
+
+function initThree() {
+  renderer = new THREE.WebGLRenderer({
+    canvas: glCv,
+    alpha: true,
+    antialias: true
+  });
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  scene = new THREE.Scene();
+
+  camera = new THREE.OrthographicCamera(
+    -1, 1, 1, -1, -10, 10
+  );
+
   resize();
+}
 
-  // MediaPipe koordinatasini (0..1) ekran pikseliga o'tkazish (video: object-fit cover + ko'zgu)
-  function mapPoint(l) {
-    const vw = video.videoWidth || 1280, vh = video.videoHeight || 720;
-    const s = Math.max(W / vw, H / vh);
-    const ox = (W - vw * s) / 2, oy = (H - vh * s) / 2;
-    return { x: W - (l.x * vw * s + ox), y: l.y * vh * s + oy };
-  }
+window.addEventListener("resize", resize);
 
-  /* ---------- 3D shakllar (wireframe) ---------- */
-  function ring(n, f) { const a = []; for (let i = 0; i < n; i++) a.push(f(i / n * Math.PI * 2)); return a; }
+function makeHeartGeometry() {
+  const s = new THREE.Shape();
 
-  function makeRect() {
-    const w = 0.62, h = 0.88, d = 0.03;
-    const v = [
-      [-w, h, d], [w, h, d], [w, -h, d], [-w, -h, d],
-      [-w, h, -d], [w, h, -d], [w, -h, -d], [-w, -h, -d]
-    ];
-    const e = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-    // sahifadagi "matn" chiziqlari
-    [[.5, .42], [.22, .42], [-.06, .42], [-.34, .42], [-.62, .2]].forEach(([y, xr]) => {
-      const i = v.length;
-      v.push([-xr, y, d], [xr, y, d]);
-      e.push([i, i + 1]);
-    });
-    return { v, e };
-  }
+  s.moveTo(0, -0.65);
+  s.bezierCurveTo(-0.25, -0.38, -0.85, 0.05, -0.85, 0.48);
+  s.bezierCurveTo(-0.85, 1.02, -0.15, 1.08, 0, 0.55);
+  s.bezierCurveTo(0.15, 1.08, 0.85, 1.02, 0.85, 0.48);
+  s.bezierCurveTo(0.85, 0.05, 0.25, -0.38, 0, -0.65);
 
-  function makeHeart() {
-    const N = 44, layers = [[-0.34, 0.78], [0, 1.0], [0.34, 0.78]];
-    const v = [], e = [];
-    layers.forEach(([z, s], li) => {
-      ring(N, (t) => {
-        const x = 16 * Math.pow(Math.sin(t), 3);
-        const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-        return [x / 17 * s, (y + 4.5) / 17 * s, z];
-      }).forEach((p, i) => {
-        v.push(p);
-        e.push([li * N + i, li * N + (i + 1) % N]);
-      });
-    });
-    for (let i = 0; i < N; i += 4) { e.push([i, N + i]); e.push([N + i, 2 * N + i]); }
-    return { v, e };
-  }
-
-  function makePyramid() {
-    const b = 0.9, y0 = -0.6;
-    const v = [[-b, y0, -b], [b, y0, -b], [b, y0, b], [-b, y0, b], [0, 0.95, 0]];
-    const e = [[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]];
-    return { v, e };
-  }
-
-  function makeCube() {
-    const a = 0.72, v = [];
-    for (const x of [-a, a]) for (const y of [-a, a]) for (const z of [-a, a]) v.push([x, y, z]);
-    const e = [];
-    for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) {
-      const diff = (i ^ j);
-      if (diff === 1 || diff === 2 || diff === 4) e.push([i, j]);
-    }
-    return { v, e };
-  }
-
-  function makeDodeca() {
-    const p = (1 + Math.sqrt(5)) / 2, q = 1 / p, r = Math.sqrt(3);
-    let v = [];
-    for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) v.push([x, y, z]);
-    for (const s1 of [-1, 1]) for (const s2 of [-1, 1]) {
-      v.push([0, s1 * q, s2 * p]);
-      v.push([s1 * q, s2 * p, 0]);
-      v.push([s1 * p, 0, s2 * q]);
-    }
-    v = v.map(([x, y, z]) => [x / r * 1.08, y / r * 1.08, z / r * 1.08]);
-    const edgeLen = (2 / p) / r * 1.08, e = [];
-    for (let i = 0; i < v.length; i++) for (let j = i + 1; j < v.length; j++) {
-      const d = Math.hypot(v[i][0]-v[j][0], v[i][1]-v[j][1], v[i][2]-v[j][2]);
-      if (Math.abs(d - edgeLen) < 0.02) e.push([i, j]);
-    }
-    return { v, e };
-  }
-
-  const SHAPES = {
-    1: { ...makeRect(),    color: '#22e6ff', core: '#c8fbff', rot: (t) => [-0.25, t * 1.2, 0] },
-    2: { ...makeHeart(),   color: '#ff1f4b', core: '#ff9aab', rot: (t) => [0.08 + Math.sin(t * 0.9) * 0.1, Math.sin(t * 1.5) * 0.75, 0] },
-    3: { ...makePyramid(), color: '#ffd60a', core: '#fff3a8', rot: (t) => [0.35, t * 1.1, 0] },
-    4: { ...makeCube(),    color: '#ff8a1f', core: '#ffd3a3', rot: (t) => [t * 0.7 + 0.4, t * 1.0, 0.15] },
-    5: { ...makeDodeca(),  color: '#ff4fd8', core: '#ffc6f3', rot: (t) => [t * 0.6 + 0.3, t * 0.9, 0] }
-  };
-
-  function project(model, cx, cy, size, rot) {
-    const [rx, ry, rz] = rot;
-    const cX = Math.cos(rx), sX = Math.sin(rx), cY = Math.cos(ry), sY = Math.sin(ry), cZ = Math.cos(rz), sZ = Math.sin(rz);
-    const P = model.v.map(([x, y, z]) => {
-      const x1 = x * cY + z * sY, z1 = -x * sY + z * cY;
-      const y1 = y * cX - z1 * sX, z2 = y * sX + z1 * cX;
-      const x2 = x1 * cZ - y1 * sZ, y2 = x1 * sZ + y1 * cZ;
-      const k = 6 / (6 - z2);
-      return [cx + x2 * size * k, cy - y2 * size * k];
-    });
-    const seg = [];
-    for (const [a, b] of model.e) seg.push(P[a][0], P[a][1], P[b][0], P[b][1]);
-    return seg;
-  }
-
-  function strokeSegs(seg, lw) {
-    ctx.lineWidth = lw;
-    ctx.beginPath();
-    for (let i = 0; i < seg.length; i += 4) { ctx.moveTo(seg[i], seg[i + 1]); ctx.lineTo(seg[i + 2], seg[i + 3]); }
-    ctx.stroke();
-  }
-
-  // Neon: iz (trail) + keng yumshoq nur + yorqin o'zak
-  function drawNeon(hist, seg, color, core, alpha) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = color;
-    for (let i = 0; i < hist.length; i++) {
-      ctx.globalAlpha = alpha * (0.04 + 0.2 * (i / hist.length));
-      strokeSegs(hist[i], 1.4);
-    }
-    ctx.globalAlpha = alpha * 0.13; strokeSegs(seg, 14);
-    ctx.globalAlpha = alpha * 0.28; strokeSegs(seg, 6.5);
-    ctx.shadowColor = color; ctx.shadowBlur = 24;
-    ctx.globalAlpha = alpha; ctx.strokeStyle = core; strokeSegs(seg, 2.3);
-    ctx.restore();
-  }
-
-  /* ---------- qo'l skeleti ---------- */
-  const CONN = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
-                [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
-
-  function drawHand(h, strong) {
-    const p = h.pts;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = strong ? 'rgba(255,255,255,.8)' : 'rgba(255,175,235,.75)';
-    ctx.lineWidth = 1.3;
-    ctx.beginPath();
-    for (const [a, b] of CONN) { ctx.moveTo(p[a].x, p[a].y); ctx.lineTo(p[b].x, p[b].y); }
-    ctx.stroke();
-    ctx.fillStyle = strong ? 'rgba(255,255,255,.9)' : 'rgba(255,200,240,.9)';
-    for (const q of p) { ctx.beginPath(); ctx.arc(q.x, q.y, 2.2, 0, 6.2832); ctx.fill(); }
-    if (!strong) { // masshtab uchun chimdish chizig'i
-      ctx.strokeStyle = 'rgba(255,79,216,.9)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(p[4].x, p[4].y); ctx.lineTo(p[8].x, p[8].y); ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  /* ---------- barmoq sanash ---------- */
-  function countFingers(p) {
-    let n = 0;
-    for (const [tip, pip] of [[8, 6], [12, 10], [16, 14], [20, 18]]) {
-      if (dist(p[tip], p[0]) > dist(p[pip], p[0]) * 1.08) n++;
-    }
-    if (dist(p[4], p[17]) > dist(p[2], p[17]) * 1.2) n++;
-    return n;
-  }
-
-  /* ---------- holat ---------- */
-  let domSide = 'right';          // ekranda o'ng tomondagi qo'l = asosiy
-  let hands = null;
-  let fps = 0, lastRes = 0;
-  const S = {
-    hands: [], dom: null, sec: null, seen: 0,
-    raw: 0, cand: -1, stable: 0, count: 0,
-    target: { x: 0, top: 0, size: 100 }, targetScale: 1
-  };
-  const sm = { x: 0, top: 0, size: 100, scale: 1 };
-  const shape = { key: 0, on: false, a: 0, hist: [], lastPush: 0 };
-
-  swapBtn.addEventListener('click', () => {
-    domSide = domSide === 'right' ? 'left' : 'right';
-    swapBtn.textContent = "Asosiy qo'l: " + (domSide === 'right' ? "o'ng" : 'chap');
+  const g = new THREE.ExtrudeGeometry(s, {
+    depth: 0.22,
+    bevelEnabled: true,
+    bevelSegments: 3,
+    steps: 1,
+    bevelSize: 0.045,
+    bevelThickness: 0.045,
+    curveSegments: 16
   });
 
-  function onResults(res) {
-    const now = performance.now();
-    if (lastRes) fps = fps ? fps * 0.9 + (1000 / (now - lastRes)) * 0.1 : 1000 / (now - lastRes);
-    lastRes = now;
+  g.center();
+  return g;
+}
 
-    const lms = res.multiHandLandmarks || [];
-    const hs = lms.map((l) => ({ pts: l.map(mapPoint) }));
-    S.hands = hs; S.dom = null; S.sec = null;
-    if (!hs.length) return;
+const SHAPES = {
+  1: {
+    color: 0x35e0ff,
+    make: () => new THREE.BoxGeometry(1.35, 0.9, 0.055)
+  },
 
-    if (hs.length >= 2) {
-      hs.sort((a, b) => a.pts[0].x - b.pts[0].x);
-      const left = hs[0], right = hs[hs.length - 1];
-      S.dom = domSide === 'right' ? right : left;
-      S.sec = domSide === 'right' ? left : right;
-    } else {
-      S.dom = hs[0];
+  2: {
+    color: 0xff102f,
+    make: makeHeartGeometry
+  },
+
+  3: {
+    color: 0xffe135,
+    make: () => {
+      const g = new THREE.CylinderGeometry(0.85, 0.85, 0.1, 3);
+      g.rotateX(Math.PI / 2);
+      return g;
     }
-    S.seen = now;
+  },
 
-    // barmoq soni (5 kadr barqaror bo'lsa qabul qilinadi)
-    const n = countFingers(S.dom.pts);
-    S.raw = n;
-    if (n === S.cand) S.stable++; else { S.cand = n; S.stable = 1; }
-    if (S.stable >= 4) S.count = n;
+  4: {
+    color: 0xff8a1f,
+    make: () => new THREE.BoxGeometry(1, 1, 1)
+  },
 
-    // joylashuv: qo'lning eng yuqori nuqtasi ustida
-    const p = S.dom.pts;
-    const handSize = dist(p[0], p[9]);
-    let top = Infinity; for (const q of p) if (q.y < top) top = q.y;
-    S.target.x = p[9].x;
-    S.target.top = top;
-    S.target.size = clamp(handSize * 1.15, 60, 230);
+  5: {
+    color: 0xff4fd8,
+    make: () => new THREE.CylinderGeometry(0.8, 0.8, 0.15, 5)
+  }
+};
 
-    // masshtab: ikkinchi qo'l chimdishi
-    if (S.sec) {
-      const q = S.sec.pts;
-      const d = dist(q[4], q[8]) / Math.max(1, dist(q[0], q[9]));
-      S.targetScale = 0.5 + clamp((d - 0.1) / 0.9, 0, 1) * 2.0;
-    }
+const cylinderGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
+
+function thickEdges(geometry, color, radius, opacity) {
+  const group = new THREE.Group();
+  const positions = geometry.attributes.position;
+
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    blending: THREE.AdditiveBlending,
+    depthTest: false,
+    depthWrite: false
+  });
+
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const dir = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+
+  for (let i = 0; i < positions.count; i += 2) {
+    a.fromBufferAttribute(positions, i);
+    b.fromBufferAttribute(positions, i + 1);
+
+    dir.subVectors(b, a);
+    const len = dir.length();
+
+    if (len < 0.00001) continue;
+
+    const mesh = new THREE.Mesh(cylinderGeo, material);
+    mesh.position.copy(a).add(b).multiplyScalar(0.5);
+    mesh.scale.set(radius, len + radius * 1.5, radius);
+    mesh.quaternion.setFromUnitVectors(up, dir.normalize());
+
+    group.add(mesh);
   }
 
-  /* ---------- chizish sikli ---------- */
-  let lastT = performance.now(), lastStatus = 0;
-  function render(now) {
-    requestAnimationFrame(render);
-    const dt = Math.min((now - lastT) / 1000, 0.05); lastT = now;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    ctx.clearRect(0, 0, W, H);
+  return group;
+}
 
-    const fresh = S.dom && (now - S.seen) < 250;
+function clearShape() {
+  if (main) {
+    scene.remove(main);
 
-    // qo'l skeleti
-    if (fresh) for (const h of S.hands) drawHand(h, h === S.dom);
+    main.traverse(obj => {
+      if (obj.geometry) obj.geometry.dispose();
 
-    // silliqlash
-    const kPos = 1 - Math.exp(-dt * 16);
-    const kScale = 1 - Math.exp(-dt * 9);
-    const want = !!fresh && S.count >= 1 && S.count <= 5;
-
-    if (want && shape.a < 0.01) { // yangi paydo bo'lish: joyiga yopishtirish
-      sm.x = S.target.x; sm.top = S.target.top; sm.size = S.target.size;
-    } else if (fresh) {
-      sm.x += (S.target.x - sm.x) * kPos;
-      sm.top += (S.target.top - sm.top) * kPos;
-      sm.size += (S.target.size - sm.size) * kPos;
-    }
-    sm.scale += (S.targetScale - sm.scale) * kScale;
-
-    if (want && (!shape.on || shape.key !== S.count)) {
-      shape.key = S.count; shape.a = 0; shape.hist = []; shape.on = true;
-    }
-    if (!want) shape.on = false;
-    shape.a = clamp(shape.a + (shape.on ? dt / 0.45 : -dt / 0.25), 0, 1);
-
-    if (shape.a > 0.001) {
-      const m = SHAPES[shape.key];
-      const baseSize = Math.min(sm.size * sm.scale, H * 0.42);
-      const pop = Math.max(0, easeOutBack(shape.a));
-      const size = baseSize * pop;
-      const cx = sm.x;
-      const cy = Math.max(sm.top - baseSize * 1.15 - 14, baseSize + 8);
-      const t = now / 1000;
-      const seg = project(m, cx, cy, size, m.rot(t));
-
-      if (now - shape.lastPush > 24) {
-        shape.hist.push(seg); if (shape.hist.length > 9) shape.hist.shift();
-        shape.lastPush = now;
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(m => m.dispose());
+        } else {
+          obj.material.dispose();
+        }
       }
-      drawNeon(shape.hist, seg, m.color, m.core, clamp(shape.a * 1.4, 0, 1));
-    }
-
-    // holat yozuvi
-    if (now - lastStatus > 250) {
-      lastStatus = now;
-      const a = fresh ? S.raw : "yo'q";
-      const b = fresh && S.sec ? 'masshtab ×' + sm.scale.toFixed(2) : "yo'q";
-      statusEl.textContent = `asosiy qo'l: ${a} · ikkinchi qo'l: ${b} · ${Math.round(fps)} fps`;
-    }
+    });
   }
 
-  /* ---------- ishga tushirish ---------- */
-  let lastVideoT = -1;
-  async function detectLoop() {
-    if (video.readyState >= 2 && video.currentTime !== lastVideoT) {
-      lastVideoT = video.currentTime;
-      try { await hands.send({ image: video }); } catch (e) { console.error(e); }
-    }
-    requestAnimationFrame(detectLoop);
+  ghosts.forEach(g => {
+    scene.remove(g);
+    g.geometry.dispose();
+    g.material.dispose();
+  });
+
+  main = null;
+  ghosts = [];
+}
+
+function buildShape(n) {
+  clearShape();
+
+  const cfg = SHAPES[n];
+  if (!cfg) return;
+
+  const geometry = cfg.make();
+  const edgeGeometry = new THREE.EdgesGeometry(geometry);
+
+  const coreColor = new THREE.Color(cfg.color)
+    .lerp(new THREE.Color(0xffffff), 0.45);
+
+  main = new THREE.Group();
+
+  // Yurakning ichki qismi ham qizil bo‘lib ko‘rinadi.
+  if (n === 2) {
+    const fill = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        color: 0xff102f,
+        transparent: true,
+        opacity: 0.42,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      })
+    );
+
+    main.add(fill);
   }
 
-  goBtn.addEventListener('click', async () => {
-    goBtn.disabled = true; msgEl.style.color = 'rgba(255,255,255,.7)';
-    try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('insecure');
-      }
-      if (typeof Hands === 'undefined') throw new Error('nolib');
+  // Neon tashqi nur, o‘rta nur va yorqin o‘zak.
+  main.add(thickEdges(edgeGeometry, cfg.color, 0.12, 0.28));
+  main.add(thickEdges(edgeGeometry, cfg.color, 0.06, 0.72));
+  main.add(thickEdges(edgeGeometry, coreColor, 0.025, 1));
 
-      msgEl.textContent = 'Kamera yoqilmoqda…';
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: false
-      });
-      video.srcObject = stream;
-      await video.play();
+  scene.add(main);
 
-      msgEl.textContent = 'Model yuklanmoqda…';
-      hands = new Hands({ locateFile: (f) => `${MP_BASE}/${f}` });
-      hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
-      hands.onResults(onResults);
-      await hands.initialize();
+  for (let i = 0; i < TRAIL; i++) {
+    const ghost = new THREE.LineSegments(
+      edgeGeometry,
+      new THREE.LineBasicMaterial({
+        color: cfg.color,
+        transparent: true,
+        opacity: 0.8 * (1 - i / TRAIL),
+        blending: THREE.AdditiveBlending,
+        depthTest: false
+      })
+    );
 
-      swapBtn.hidden = false;
-      intro.classList.add('hide');
-      resize();
-      requestAnimationFrame(render);
-      detectLoop();
-    } catch (err) {
-      console.error(err);
-      msgEl.style.color = '#ffb4c0';
-      if (err.message === 'insecure') msgEl.textContent = "Kamera faqat https yoki localhost orqali ishlaydi. Sahifani GitHub Pages'dan yoki localhost'dan oching.";
-      else if (err.message === 'nolib') msgEl.textContent = "MediaPipe kutubxonasi yuklanmadi. Internetni tekshirib, sahifani yangilang.";
-      else if (err.name === 'NotAllowedError') msgEl.textContent = "Kameraga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering va qayta urinib ko'ring.";
-      else if (err.name === 'NotFoundError') msgEl.textContent = 'Kamera topilmadi.';
-      else msgEl.textContent = 'Xatolik: ' + (err.message || err.name);
-      goBtn.disabled = false;
+    ghost.visible = false;
+    scene.add(ghost);
+    ghosts.push(ghost);
+  }
+
+  currentShape = n;
+  history.length = 0;
+}
+
+// Barmoqlarni sanash.
+function countFingers(lm) {
+  const palmSize = fingerDistance(lm[0], lm[9]);
+  let count = 0;
+
+  // Bosh barmoq.
+  if (fingerDistance(lm[4], lm[5]) > palmSize * 0.55) {
+    count++;
+  }
+
+  // Ko‘rsatkich, o‘rta, nomsiz va jimjiloq.
+  [[8,6], [12,10], [16,14], [20,18]].forEach(([tip,pip]) => {
+    if (
+      fingerDistance(lm[tip], lm[0]) >
+      fingerDistance(lm[pip], lm[0]) * 1.1
+    ) {
+      count++;
     }
   });
-})();
+
+  return count;
+}
+
+const hands = new Hands({
+  locateFile: f =>
+    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+
+hands.setOptions({
+  maxNumHands: 2,
+  modelComplexity: 0,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.6
+});
+
+hands.onResults(results => {
+  ctx.clearRect(0, 0, W, H);
+
+  const detected = results.multiHandLandmarks || [];
+  const now = performance.now();
+
+  frames++;
+  if (now - lastFps > 1000) {
+    fps = Math.round(frames * 1000 / (now - lastFps));
+    frames = 0;
+    lastFps = now;
+  }
+
+  if (!detected.length) {
+    noHandFrames++;
+
+    if (noHandFrames > 10) {
+      visible = false;
+      stable = 0;
+    }
+
+    hud.textContent = `Qo‘l topilmadi · ${fps} FPS`;
+    return;
+  }
+
+  noHandFrames = 0;
+
+  ctx.save();
+  ctx.translate(W, 0);
+  ctx.scale(-1, 1);
+
+  detected.forEach(lm => {
+    drawConnectors(ctx, lm, HAND_CONNECTIONS, {
+      color: "rgba(255,255,255,0.55)",
+      lineWidth: 1
+    });
+
+    drawLandmarks(ctx, lm, {
+      color: "rgba(255,255,255,0.8)",
+      radius: 1.5
+    });
+  });
+
+  ctx.restore();
+
+  const handsSorted = detected.map(lm => ({
+    lm,
+    x: 1 - lm[0].x
+  })).sort((a,b) => a.x - b.x);
+
+  let dominant;
+  let other = null;
+
+  if (handsSorted.length === 1) {
+    dominant = handsSorted[0];
+  } else {
+    dominant = swapped
+      ? handsSorted[0]
+      : handsSorted[handsSorted.length - 1];
+
+    other = swapped
+      ? handsSorted[handsSorted.length - 1]
+      : handsSorted[0];
+  }
+
+  const count = countFingers(dominant.lm);
+
+  if (count === pending) {
+    pendingFrames++;
+  } else {
+    pending = count;
+    pendingFrames = 1;
+  }
+
+  if (pendingFrames >= 4) stable = count;
+
+  // Musht shaklni yashiradi.
+  if (stable === 0) {
+    visible = false;
+  } else if (SHAPES[stable]) {
+    if (stable !== currentShape) buildShape(stable);
+
+    visible = true;
+
+    const p = dominant.lm[9];
+    target.x = ((1 - p.x) * 2 - 1) * aspect;
+
+    let topY = -9;
+
+    [4,8,12,16,20].forEach(i => {
+      topY = Math.max(topY, 1 - dominant.lm[i].y * 2);
+    });
+
+    target.y = Math.min(0.85, topY + 0.08 + 0.3 * scaleCur);
+  } else {
+    visible = false;
+  }
+
+  // Ikkinchi qo‘l bilan o‘lchamni boshqarish.
+  if (other) {
+    const lm = other.lm;
+
+    const pinch =
+      screenDistance(lm[4], lm[8]) /
+      Math.max(screenDistance(lm[0], lm[9]), 0.001);
+
+    const t = Math.min(1, Math.max(0, (pinch - 0.15) / 0.85));
+    scaleTarget = 0.5 + t * 2;
+  }
+
+  hud.textContent =
+    `Barmoqlar: ${stable} · ${fps} FPS · ` +
+    (stable === 2 ? "Qizil neon yurak ❤️" :
+     stable === 1 ? "To‘rtburchakli list" :
+     stable === 3 ? "Uchburchak" :
+     stable === 4 ? "Kub" :
+     stable === 5 ? "Beshburchak" : "Musht");
+});
+
+let lastTime = performance.now();
+
+function loop(time) {
+  requestAnimationFrame(loop);
+
+  if (!renderer) return;
+
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+
+  if (main) {
+    if (visible && !wasVisible) {
+      cur.x = target.x;
+      cur.y = target.y;
+      history.length = 0;
+    }
+
+    wasVisible = visible;
+    main.visible = visible;
+
+    cur.x += (target.x - cur.x) * 0.18;
+    cur.y += (target.y - cur.y) * 0.18;
+
+    scaleCur += (scaleTarget - scaleCur) * 0.2;
+
+    rot.x += 0.8 * dt;
+    rot.y += 1.2 * dt;
+    rot.z += 0.3 * dt;
+
+    const size = 0.35 * scaleCur;
+
+    main.position.set(cur.x, cur.y, 0);
+    main.rotation.set(rot.x, rot.y, rot.z);
+    main.scale.setScalar(size);
+
+    history.push({
+      x: cur.x,
+      y: cur.y,
+      rx: rot.x,
+      ry: rot.y,
+      rz: rot.z,
+      size
+    });
+
+    if (history.length > TRAIL * 2 + 4) history.shift();
+
+    ghosts.forEach((g, i) => {
+      const h = history[history.length - 1 - (i + 1) * 2];
+
+      if (visible && h) {
+        g.visible = true;
+        g.position.set(h.x, h.y, 0);
+        g.rotation.set(h.rx, h.ry, h.rz);
+        g.scale.setScalar(h.size);
+      } else {
+        g.visible = false;
+      }
+    });
+  }
+
+  renderer.render(scene, camera);
+}
+
+document.getElementById("swap").onclick = () => {
+  swapped = !swapped;
+};
+
+document.getElementById("start").onclick = async () => {
+  const startButton = document.getElementById("start");
+  startButton.disabled = true;
+  startButton.textContent = "Kamera yuklanmoqda...";
+
+  try {
+    video.addEventListener("loadedmetadata", () => {
+      stage.style.display = "block";
+      stage.style.aspectRatio =
+        `${video.videoWidth} / ${video.videoHeight}`;
+
+      document.getElementById("swap").style.display = "inline-block";
+
+      initThree();
+      requestAnimationFrame(loop);
+    }, { once: true });
+
+    const cam = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+      facingMode: "user",
+      width: 480,
+      height: 640
+    });
+
+    await cam.start();
+  } catch (err) {
+    console.error(err);
+    hud.textContent = "Kamera ochilmadi. Ruxsat va HTTPS ni tekshiring.";
+    startButton.disabled = false;
+    startButton.textContent = "Qayta urinish";
+  }
+};
 </script>
 </body>
 </html>
